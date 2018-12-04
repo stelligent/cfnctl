@@ -1,0 +1,1 @@
+from commands.deploy import deploy
