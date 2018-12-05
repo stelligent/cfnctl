@@ -15,6 +15,7 @@ build:
 test:
 	@echo "=== Testing ==="
 	python -m unittest test
+	# python -m unittest discover test "*"
 
 deploy_test: build
 	@echo "=== Deploy test.pypi ==="
