@@ -1,1 +1,4 @@
-from commands.deploy import deploy
+'''
+CFNCTL subcommand logic
+'''
+from cfnctl.commands.deploy import deploy

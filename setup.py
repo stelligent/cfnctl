@@ -29,9 +29,9 @@ from setuptools import setup, find_packages
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
-_version = "0.3.3"
+_version = "0.3.5"
 
-console_scripts = [ 'cfnctl = cfnctl:main',
+console_scripts = [ 'cfnctl = cfnctl.cfnctl:main',
                    ]
 
 # read the contents of your README file

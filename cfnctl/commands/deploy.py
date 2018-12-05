@@ -1,46 +1,36 @@
-from jinja2 import Environment, FileSystemLoader
-import boto3
+'''
+Deploy subcommand logic
+Handles creating an S3 bucket (if required) and uploading
+template to the bucket
+Creates and executes a changeset to either create a new
+stack or update an existing stack
+'''
 import datetime
 import time
 import logging
-import json
-import os
-import sys
-import argparse
+# import sys
+# import json
+# import os
+# import argparse
+import boto3
+# from jinja2 import Environment, FileSystemLoader
 
-
-# email_prefix = 'rjulian'
-# template_name = 'landing-zone.template'
-# parameter_file = 'parameters.json'
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-# if os.environ.get('GITHUB_TOKEN') == None:
-#     logging.warn(' missing GITHUB_TOKEN enviornment variable')
-#     quit()
-
-def _upload_template(s3, bucket, template_name):
+def _upload_template(simple_storage_service, bucket, template_name):
     '''Upload the cfn template
     to S3
     '''
     logging.info('Uploading template file')
-    s3.upload_file('./{}'.format(template_name), bucket, template_name)
+    simple_storage_service.upload_file('./{}'.format(template_name), bucket, template_name)
 
 
-def _bucket_exists(s3, name):
+def _bucket_exists(simple_storage_service, name):
     '''Check if a bucket exists
     by name
 
     return bool
     '''
     logging.info('Verifying S3 bucket exists')
-    buckets = s3.list_buckets()
+    buckets = simple_storage_service.list_buckets()
     exists = False
     for bucket in buckets['Buckets']:
         if bucket['Name'] == name:
@@ -49,7 +39,7 @@ def _bucket_exists(s3, name):
     return exists
 
 
-def _maybe_make_bucket(s3, region, account_id):
+def _maybe_make_bucket(simple_storage_service, region, account_id):
     '''Make a bucket to upload
     the cfn template to if
     it does not exist
@@ -59,13 +49,13 @@ def _maybe_make_bucket(s3, region, account_id):
     logging.info('Maybe make S3 bucket')
     stack_bucket = 'landing-zone-template-bucket-{}-{}'.format(
         region, account_id)
-    if _bucket_exists(s3, stack_bucket) == True:
+    if _bucket_exists(simple_storage_service, stack_bucket):
         logging.info('Bucket exists')
         return stack_bucket
 
-    logging.info('No S3 bucket found, creating {}'.format(stack_bucket))
-    s3.create_bucket(Bucket=stack_bucket)
-    s3.put_bucket_versioning(
+    logging.info('No S3 bucket found, creating %s', stack_bucket)
+    simple_storage_service.create_bucket(Bucket=stack_bucket)
+    simple_storage_service.put_bucket_versioning(
         Bucket=stack_bucket,
         VersioningConfiguration={
             'MFADelete': 'Enabled',
@@ -73,6 +63,7 @@ def _maybe_make_bucket(s3, region, account_id):
         }
     )
     return stack_bucket
+
 
 def _stack_exists(client, name):
     '''Check if a cfn stack exists
@@ -98,9 +89,9 @@ def _make_change_set(client, stack, template, parameters):
     '''
     logging.info('Creating change set')
     exists = _stack_exists(client, stack)
-    setName = stack + datetime.datetime.now().strftime('%y-%m-%d-%H%M%S')
-    logging.info('Stack exists: {}'.format(exists))
-    logging.info('template url: {}'.format(template))
+    set_name = stack + datetime.datetime.now().strftime('%y-%m-%d-%H%M%S')
+    logging.info('Stack exists: %s', exists)
+    logging.info('template url: %s', template)
     client.create_change_set(
         StackName=stack,
         TemplateURL=template,
@@ -109,10 +100,10 @@ def _make_change_set(client, stack, template, parameters):
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
-        ChangeSetName=setName,
+        ChangeSetName=set_name,
         ChangeSetType='UPDATE' if exists else 'CREATE'
     )
-    return setName
+    return set_name
 
 
 def _wait_for_changeset(client, changeset, stack):
@@ -133,7 +124,7 @@ def _wait_for_changeset(client, changeset, stack):
         logging.error('Error: Failed to create change set')
         return False
 
-    logging.info('Waiting for change set creation. Status: {}'.format(description['Status']))
+    logging.info('Waiting for change set creation. Status: %s', description['Status'])
     time.sleep(3)
     return _wait_for_changeset(client, changeset, stack)
 
@@ -179,21 +170,21 @@ def _get_template_url(bucket, template_name):
 
 
 def deploy(args):
-  logging.info('Calling deploy')
-  stack = args.stack_name
-  client = boto3.client('cloudformation')
-  s3 = boto3.client('s3')
-  account_id = boto3.client('sts').get_caller_identity().get('Account')
-  region = args.region or boto3.session.Session().region_name
-  bucket = _maybe_make_bucket(s3, region, account_id)
-  # TODO: normalize template name
-  _upload_template(s3, bucket, args.template)
-  changeset = _make_change_set(client, stack, _get_template_url(bucket, 'test'), _get_parameters())
-  ready = _wait_for_changeset(client, changeset, stack)
-  if ready == False:
-      return
+    '''Deploy a cloudformation stack
+    '''
+    logging.info('Calling deploy')
+    stack = args.stack_name
+    client = boto3.client('cloudformation')
+    simple_storage_service = boto3.client('s3')
+    account_id = boto3.client('sts').get_caller_identity().get('Account')
+    region = args.region or boto3.session.Session().region_name
+    bucket = _maybe_make_bucket(simple_storage_service, region, account_id)
+    # TODO: normalize template name
+    _upload_template(simple_storage_service, bucket, args.template)
+    changeset = _make_change_set(client, stack,
+                                 _get_template_url(bucket, 'test'), _get_parameters())
+    ready = _wait_for_changeset(client, changeset, stack)
+    if ready is False:
+        return
 
-  _execute_changeset(client, changeset, stack)
-
-
-# deploy()
+    _execute_changeset(client, changeset, stack)
