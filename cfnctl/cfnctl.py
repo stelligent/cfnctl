@@ -34,12 +34,13 @@ def arg_deploy(parser, action):
                                   dest='parser_name')
 
   command_deploy=command.add_parser('deploy', help='creates a changeset and executes to create or update stack')
-  deploy_group = command_deploy.add_argument_group('optional arguments')
-  deploy_group.add_argument('-b', dest='bucket', required=False, help='Bucket to upload template to')
-  deploy_group.add_argument('-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
-  deploy_group.add_argument('-p', dest='parameters', required=False, help='Local parameters JSON file', default='parameters.json')
-  deploy_group.add_argument('-s', dest='stack_name', required=True, help="Stack name")
-  deploy_group.add_argument('-t', dest='template', required=False, help='CFN Template from local file or URL')
+  required_group = command_deploy.add_argument_group('required arguments')
+  required_group.add_argument('-s', dest='stack_name', required=True, help="Stack name")
+  required_group.add_argument('-t', dest='template', required=True, help='CFN Template from local file or URL')
+  optional_group = command_deploy.add_argument_group('optional arguments')
+  optional_group.add_argument('-b', dest='bucket', required=False, help='Bucket to upload template to')
+  optional_group.add_argument('-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
+  optional_group.add_argument('-p', dest='parameters', required=False, help='Local parameters JSON file', default='parameters.json')
   command_deploy.set_defaults(func=action)
   return parser
 
@@ -50,7 +51,6 @@ def arg_parser():
 
   parser.add_argument('-p', dest='aws_profile', required=False, help='AWS Profile')
   parser.add_argument('-r', dest='region', required=False, help="Region name")
-
 
   if len(sys.argv[1:])==0:
       parser.print_help()

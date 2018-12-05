@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -ex
+
+rm -r ./dist
+./setup.py sdist bdist_wheel
+twine upload dist/* -r testpypi
+
+# Install
+# pip install --user -i https://test.pypi.org/simple/ cfnctl==0.3.3

@@ -1,5 +1,7 @@
+#!/usr/bin/env python
+
 """
-aws-cfn-control
+cfnctl
 ---------------
 """
 
@@ -27,10 +29,9 @@ from setuptools import setup, find_packages
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
+_version = "0.3.3"
 
-_version = "0.0.16"
-
-console_scripts = [ 'cfnctl = cfnctl.cfnctl:main',
+console_scripts = [ 'cfnctl = cfnctl:main',
                    ]
 
 # read the contents of your README file
@@ -39,7 +40,7 @@ with io.open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='aws-cfn-control',
+    name='cfnctl',
     version=_version,
     url='https://github.com/stelligent/cfnctl',
     license="Apache License 2.0",
@@ -51,7 +52,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=[
-        'boto3>=1.4.7',
+        'boto3>=1.9.59',
     ],
     packages=find_packages(),
     keywords='aws cfn control cfnctl cloudformation stack stackset',
