@@ -10,7 +10,8 @@ import time
 import logging
 # import sys
 # import json
-# import os
+import os
+import re
 # import argparse
 import boto3
 # from jinja2 import Environment, FileSystemLoader
@@ -20,7 +21,10 @@ def _upload_template(simple_storage_service, bucket, template_name):
     to S3
     '''
     logging.info('Uploading template file')
-    simple_storage_service.upload_file('./{}'.format(template_name), bucket, template_name)
+    if _is_url(template_name):
+        return
+    file_path = os.path.abspath(template_name)
+    return simple_storage_service.upload_file(os.path.basename(template_name), bucket, file_path)
 
 
 def _bucket_exists(simple_storage_service, name):
@@ -159,6 +163,8 @@ def _get_parameters():
     # )
     # return json.loads(rendered)
 
+def _is_url(str):
+    return re.match('https?://', str) is not None
 
 def _get_template_url(bucket, template_name):
     '''Get the cfn template url
@@ -166,7 +172,9 @@ def _get_template_url(bucket, template_name):
 
     return string - template URL
     '''
-    return 'https://s3.amazonaws.com/{}/{}'.format(bucket, template_name)
+    if _is_url(template_name):
+        return template_name
+    return 'https://s3.amazonaws.com/{}/{}'.format(bucket, os.path.basename(template_name))
 
 
 def deploy(args):
@@ -179,10 +187,9 @@ def deploy(args):
     account_id = boto3.client('sts').get_caller_identity().get('Account')
     region = args.region or boto3.session.Session().region_name
     bucket = _maybe_make_bucket(simple_storage_service, region, account_id)
-    # TODO: normalize template name
     _upload_template(simple_storage_service, bucket, args.template)
     changeset = _make_change_set(client, stack,
-                                 _get_template_url(bucket, 'test'), _get_parameters())
+                                 _get_template_url(bucket, args.template), _get_parameters())
     ready = _wait_for_changeset(client, changeset, stack)
     if ready is False:
         return
