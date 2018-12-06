@@ -29,7 +29,7 @@ from setuptools import setup, find_packages
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
-_version = "0.3.5"
+_version = "0.3.6"
 
 console_scripts = [ 'cfnctl = cfnctl.cfnctl:main',
                    ]

@@ -9,8 +9,13 @@ lint:
 
 build:
 	@echo "=== Building ==="
+	rm -r ./build
 	rm -r ./dist
 	@./setup.py sdist bdist_wheel
+
+install: build
+	@echo "=== Installing ==="
+	pip install --user ./
 
 test:
 	@echo "=== Testing ==="
@@ -21,10 +26,13 @@ deploy_test: build
 	@twine upload dist/* -r testpypi
 	# pip install --user -i https://test.pypi.org/simple/ cfnctl==0.3.3
 
-# deploy: build
-# 	@echo "=== Deploy pypi ==="
-# 	@twine upload dist/*
+deploy: build
+	@echo "=== Deploy pypi ==="
+	@twine upload dist/*
+
+usage: install
+	cfnctl --help
 
 all: deps test build
 
-.PHONY: default all lint build test deploy_test
+.PHONY: default all lint build test deploy_test usage 
