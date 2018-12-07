@@ -166,10 +166,13 @@ def _stack_complete(client, name):
         'UPDATE_ROLLBACK_FAILED',
         'UPDATE_ROLLBACK_COMPLETE'
     ]
-    return stack['StackStatus'] in complete_states
+    return {
+        'complete': stack['StackStatus'] in complete_states,
+        'status': stack['StackStatus']
+    }
 
 
-def _wait_for_stack(client, stack, token=None, events=[]):
+def _wait_for_stack(client, stack, token=None, old_events=None):
     '''Block script execution until the stack status
     is in a finished state
 
@@ -185,30 +188,35 @@ def _wait_for_stack(client, stack, token=None, events=[]):
         events = client.describe_stack_events(
             StackName=stack
         )
-
-    for _, event in enumerate(events['StackEvents']):
+    if not old_events:
+        old_events = []
+    # determine which events are new
+    new_events = list(
+        [event for event in events['StackEvents'] if event['EventId'] not in old_events]
+    )
+    # log new events
+    for _, event in enumerate(new_events):
         logging.info(
             '%s %s %s',
             event['LogicalResourceId'],
             event['ResourceStatus'],
             'ResourceStatusReason' in event and event['ResourceStatusReason'] or ''
         )
-    # logging.info(events)
-    # CREATE_PENDING'|'CREATE_IN_PROGRESS'|'CREATE_COMPLETE'|'DELETE_COMPLETE'|'FAILED',
-    # if events['Status'] == 'CREATE_COMPLETE':
-    #     return True
-
-    # if events['Status'] == 'FAILED':
-    #     logging.error('Error: Failed to create change set')
-    #     return False
-    # logging.info('Waiting for change set creation. Status: %s', events['Status'])
-    time.sleep(1)
-    # sleep longer if there's no change
-    # if 'NextToken' in events and events['NextToken'] is token:
-    #     time.sleep(2)
-    if _stack_complete(client, stack):
+    # wait a bit before doing this again
+    time.sleep(3)
+    # if the stack is complete we'll stop (we should query one more time for events probably)
+    stack_status = _stack_complete(client, stack)
+    if stack_status['complete']:
+        logging.info('Stack finished in %s state', stack_status['status'])
         return None
-    return _wait_for_stack(client, stack, 'NextToken' in events and events['NextToken'])
+    # make a list of previous stack events
+    last_events = list([event['EventId'] for event in events['StackEvents']])
+    return _wait_for_stack(
+        client,
+        stack,
+        'NextToken' in events and events['NextToken'],
+        last_events
+    )
 
 
 def _execute_changeset(client, changeset, stack):
