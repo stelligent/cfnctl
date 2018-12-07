@@ -8,14 +8,13 @@ stack or update an existing stack
 import datetime
 import time
 import logging
-# import json
+import json
 import os
 import re
 import sys
-# import argparse
 import boto3
 import botocore.exceptions
-# from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader
 
 def _upload_template(simple_storage_service, stack, bucket, template_name):
     '''Upload the cfn template
@@ -25,9 +24,7 @@ def _upload_template(simple_storage_service, stack, bucket, template_name):
     if _is_url(template_name):
         return None
     file_path = os.path.abspath(template_name)
-    s3_path = '{}/{}'.format(
-        stack,
-        os.path.basename(template_name))
+    s3_path = _s3_path(stack, template_name)
     return simple_storage_service.upload_file(file_path, bucket, s3_path)
 
 
@@ -92,6 +89,7 @@ def _stack_exists(client, name):
         if 'not exist' in message:
             return False
         print error
+
     if not stacks:
         sys.exit()
 
@@ -140,15 +138,77 @@ def _wait_for_changeset(client, changeset, stack):
     )
     # CREATE_PENDING'|'CREATE_IN_PROGRESS'|'CREATE_COMPLETE'|'DELETE_COMPLETE'|'FAILED',
     if description['Status'] == 'CREATE_COMPLETE':
+        logging.info('Waiting for change set creation. Status: %s', description['Status'])
         return True
 
     if description['Status'] == 'FAILED':
         logging.error('Error: Failed to create change set')
+        logging.error(description['StatusReason'])
         return False
 
     logging.info('Waiting for change set creation. Status: %s', description['Status'])
     time.sleep(3)
     return _wait_for_changeset(client, changeset, stack)
+
+def _stack_complete(client, name):
+    '''Check if a stack is in a complete (finished, failure)
+    state
+    '''
+    stacks = client.describe_stacks(StackName=name)
+    stack = stacks['Stacks'][0]
+    complete_states = [
+        'CREATE_FAILED',
+        'CREATE_COMPLETE',
+        'ROLLBACK_COMPLETE',
+        'DELETE_FAILED',
+        'DELETE_COMPLETE',
+        'UPDATE_COMPLETE',
+        'UPDATE_ROLLBACK_FAILED',
+        'UPDATE_ROLLBACK_COMPLETE'
+    ]
+    return stack['StackStatus'] in complete_states
+
+
+def _wait_for_stack(client, stack, token=None, events=[]):
+    '''Block script execution until the stack status
+    is in a finished state
+
+    return bool
+    '''
+    events = None
+    if token:
+        events = client.describe_stack_events(
+            StackName=stack,
+            NextToken=token
+        )
+    else:
+        events = client.describe_stack_events(
+            StackName=stack
+        )
+
+    for _, event in enumerate(events['StackEvents']):
+        logging.info(
+            '%s %s %s',
+            event['LogicalResourceId'],
+            event['ResourceStatus'],
+            'ResourceStatusReason' in event and event['ResourceStatusReason'] or ''
+        )
+    # logging.info(events)
+    # CREATE_PENDING'|'CREATE_IN_PROGRESS'|'CREATE_COMPLETE'|'DELETE_COMPLETE'|'FAILED',
+    # if events['Status'] == 'CREATE_COMPLETE':
+    #     return True
+
+    # if events['Status'] == 'FAILED':
+    #     logging.error('Error: Failed to create change set')
+    #     return False
+    # logging.info('Waiting for change set creation. Status: %s', events['Status'])
+    time.sleep(1)
+    # sleep longer if there's no change
+    # if 'NextToken' in events and events['NextToken'] is token:
+    #     time.sleep(2)
+    if _stack_complete(client, stack):
+        return None
+    return _wait_for_stack(client, stack, 'NextToken' in events and events['NextToken'])
 
 
 def _execute_changeset(client, changeset, stack):
@@ -163,28 +223,31 @@ def _execute_changeset(client, changeset, stack):
     )
 
 
-def _get_parameters():
+def _get_parameters(parameter_file):
     '''Get parameters for a cfn template
 
     return object
     '''
     logging.info('Getting template parameters')
-    return '{}'
-    # templateEnv = Environment(
-    #     loader=FileSystemLoader(searchpath="./")
-    # )
-    # template = templateEnv.get_template(parameter_file)
-    # logging.info('Rendering parameter jinja2 template')
-    # rendered = template.render(
-    #     email=email_prefix,
-    #     github_token=os.environ.get('GITHUB_TOKEN')
-    # )
-    # return json.loads(rendered)
+    logging.info(os.getcwd())
+    template_env = Environment(
+        loader=FileSystemLoader(searchpath=os.getcwd())
+    )
+    template = template_env.get_template(parameter_file)
+    logging.info('Rendering parameter template')
+    rendered = template.render(
+        # email=email_prefix,
+        # github_token=os.environ.get('GITHUB_TOKEN')
+    )
+    return json.loads(rendered)
 
 def _is_url(search):
     return re.match('https?://', search) is not None
 
-def _get_template_url(bucket, template_name):
+def _s3_path(stack, template):
+    return '{}/{}'.format(stack, os.path.basename(template))
+
+def _get_template_url(bucket, stack, template_name):
     '''Get the cfn template url
     with the bucket name
 
@@ -192,7 +255,7 @@ def _get_template_url(bucket, template_name):
     '''
     if _is_url(template_name):
         return template_name
-    return 'https://s3.amazonaws.com/{}/{}'.format(bucket, os.path.basename(template_name))
+    return 'https://s3.amazonaws.com/{}/{}'.format(bucket, _s3_path(stack, template_name))
 
 
 def deploy(args):
@@ -206,10 +269,15 @@ def deploy(args):
     region = args.region or boto3.session.Session().region_name
     bucket = args.bucket or _maybe_make_bucket(simple_storage_service, region, account_id)
     _upload_template(simple_storage_service, stack, bucket, args.template)
-    changeset = _make_change_set(client, stack,
-                                 _get_template_url(bucket, args.template), _get_parameters())
+    changeset = _make_change_set(
+        client,
+        stack,
+        _get_template_url(bucket, stack, args.template),
+        _get_parameters(args.parameters)
+    )
     ready = _wait_for_changeset(client, changeset, stack)
     if ready is False:
         return
 
     _execute_changeset(client, changeset, stack)
+    _wait_for_stack(client, stack)
