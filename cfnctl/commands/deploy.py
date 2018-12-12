@@ -206,7 +206,7 @@ def deploy(args):
     changeset = _make_change_set(
         client,
         stack,
-        bucket.get_file_url(bucket, stack, args.template),
+        lib.bucket.get_file_url(bucket, stack, args.template),
         _get_parameters(args.parameters)
     )
     ready = _wait_for_changeset(client, changeset, stack)
