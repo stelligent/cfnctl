@@ -10,69 +10,11 @@ import time
 import logging
 import json
 import os
-import re
 import sys
 import boto3
 import botocore.exceptions
 from jinja2 import Environment, FileSystemLoader
-
-def _upload_template(simple_storage_service, stack, bucket, template_name):
-    '''Upload the cfn template
-    to S3
-    '''
-    logging.info('Uploading template file')
-    if _is_url(template_name):
-        return None
-    file_path = os.path.abspath(template_name)
-    s3_path = _s3_path(stack, template_name)
-    return simple_storage_service.upload_file(file_path, bucket, s3_path)
-
-
-def _bucket_exists(simple_storage_service, name):
-    '''Check if a bucket exists
-    by name
-
-    return bool
-    '''
-    logging.info('Verifying S3 bucket exists')
-    buckets = simple_storage_service.list_buckets()
-    exists = False
-    for bucket in buckets['Buckets']:
-        if bucket['Name'] == name:
-            exists = True
-            break
-    return exists
-
-
-def _maybe_make_bucket(simple_storage_service, region, account_id):
-    '''Make a bucket to upload
-    the cfn template to if
-    it does not exist
-
-    return string - bucket name
-    '''
-    logging.info('Maybe make S3 bucket')
-    stack_bucket = 'cfnctl-staging-bucket-{}-{}'.format(
-        region, account_id)
-    if _bucket_exists(simple_storage_service, stack_bucket):
-        logging.info('Bucket exists')
-        return stack_bucket
-
-    logging.info('No S3 bucket found, creating %s', stack_bucket)
-    simple_storage_service.create_bucket(
-        Bucket=stack_bucket,
-        CreateBucketConfiguration={
-            'LocationConstraint': region
-        })
-    simple_storage_service.put_bucket_versioning(
-        Bucket=stack_bucket,
-        VersioningConfiguration={
-            'MFADelete': 'Enabled',
-            'Status': 'Enabled'
-        },
-    )
-    return stack_bucket
-
+import cfnctl.lib as lib
 
 def _stack_exists(client, name):
     '''Check if a cfn stack exists
@@ -249,22 +191,6 @@ def _get_parameters(parameter_file):
     )
     return json.loads(rendered)
 
-def _is_url(search):
-    return re.match('https?://', search) is not None
-
-def _s3_path(stack, template):
-    return '{}/{}'.format(stack, os.path.basename(template))
-
-def _get_template_url(bucket, stack, template_name):
-    '''Get the cfn template url
-    with the bucket name
-
-    return string - template URL
-    '''
-    if _is_url(template_name):
-        return template_name
-    return 'https://s3.amazonaws.com/{}/{}'.format(bucket, _s3_path(stack, template_name))
-
 
 def deploy(args):
     '''Deploy a cloudformation stack
@@ -275,12 +201,12 @@ def deploy(args):
     simple_storage_service = boto3.client('s3')
     account_id = boto3.client('sts').get_caller_identity().get('Account')
     region = args.region or boto3.session.Session().region_name
-    bucket = args.bucket or _maybe_make_bucket(simple_storage_service, region, account_id)
-    _upload_template(simple_storage_service, stack, bucket, args.template)
+    bucket = args.bucket or lib.bucket.maybe_make_bucket(simple_storage_service, region, account_id)
+    lib.bucket.upload_file(simple_storage_service, stack, bucket, args.template)
     changeset = _make_change_set(
         client,
         stack,
-        _get_template_url(bucket, stack, args.template),
+        bucket.get_file_url(bucket, stack, args.template),
         _get_parameters(args.parameters)
     )
     ready = _wait_for_changeset(client, changeset, stack)

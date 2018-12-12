@@ -29,7 +29,7 @@ from setuptools import setup, find_packages
 def open_file(fname):
     return open(os.path.join(os.path.dirname(__file__), fname))
 
-_version = "0.3.6"
+_version = "0.4.1"
 
 console_scripts = [ 'cfnctl = cfnctl.cfnctl:main',
                    ]
@@ -53,6 +53,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'boto3>=1.9.59',
+        'jinja2>=2.10'
     ],
     packages=find_packages(),
     keywords='aws cfn control cfnctl cloudformation stack stackset',

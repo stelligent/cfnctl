@@ -35,10 +35,10 @@ def arg_deploy(parser, action):
     '''
     Deploy subcommand and arguments
     '''
-    command = parser.add_subparsers(description='command to run',
-                                    dest='parser_name')
+    # command = parser.add_subparsers(description='command to run',
+    #                                 dest='deploy')
 
-    command_deploy = command.add_parser(
+    command_deploy = parser.add_parser(
         'deploy', help='creates a changeset and executes to create or update stack')
     required_group = command_deploy.add_argument_group('required arguments')
     required_group.add_argument(
@@ -55,6 +55,26 @@ def arg_deploy(parser, action):
     command_deploy.set_defaults(func=action)
     return parser
 
+def arg_lambda(parser, action):
+    '''
+    Lambda subcommand and arguments
+    '''
+    # command = parser.add_subparsers(description='command to run',
+    #                                 dest='lambda')
+
+    command_lambda = parser.add_parser(
+        'lambda', help='creates an archive and loads it to S3 to create a lambda from')
+    required_group = command_lambda.add_argument_group('required arguments')
+    required_group.add_argument(
+        '-s', dest='source', required=True, help='Source folder to zip and upload')
+    optional_group = command_lambda.add_argument_group('optional arguments')
+    optional_group.add_argument(
+        '-o', dest='output', required=False, help='Destination of the archive file')
+    optional_group.add_argument(
+        '-b', dest='bucket', required=False, help='Bucket to upload archive to')
+
+    command_lambda.set_defaults(func=action)
+    return parser
 
 def arg_parser():
     '''
@@ -62,7 +82,6 @@ def arg_parser():
     '''
     parser = argparse.ArgumentParser(prog='cfnctl',
                                      description='Launch and manage CloudFormation stacks')
-
     parser.add_argument('-p', dest='aws_profile',
                         required=False, help='AWS Profile')
     parser.add_argument('-r', dest='region', required=False, help="Region name")
@@ -79,7 +98,9 @@ def main():
     CFNCTL entrypoint
     '''
     parser = arg_parser()
-    parser = arg_deploy(parser, commands.deploy)
+    subparsers = parser.add_subparsers()
+    arg_deploy(subparsers, commands.deploy)
+    arg_lambda(subparsers, commands.lambda_command)
     args = parser.parse_args()
     args.func(args)
 

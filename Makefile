@@ -21,12 +21,12 @@ test:
 	@echo "=== Testing ==="
 	python -m unittest discover -v test "*.py"
 
-deploy_test: build
+deploy_test: lint test build
 	@echo "=== Deploy test.pypi ==="
 	@twine upload dist/* -r testpypi
 	# pip install --user -i https://test.pypi.org/simple/ cfnctl==0.3.3
 
-deploy: build
+deploy: lint test build
 	@echo "=== Deploy pypi ==="
 	@twine upload dist/*
 
