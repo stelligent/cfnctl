@@ -85,7 +85,7 @@ def _wait_for_changeset(client, changeset, stack):
 
     if description['Status'] == 'FAILED':
         logging.error('Error: Failed to create change set')
-        logging.error(description['StatusReason'])
+        logging.error(description['Status'])
         return False
 
     logging.info('Waiting for change set creation. Status: %s', description['Status'])

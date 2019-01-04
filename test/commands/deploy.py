@@ -100,6 +100,20 @@ class TestCommandDeploy(unittest.TestCase):
         # we're only testing that this runs to completion
         self.assertEqual(finished, True)
 
+    def test_wait_for_changeset_failed(self):
+        '''pause execution until the changeset creation is complete
+        '''
+        n_calls = 1
+        client = cfn.Cloudformation()
+
+        describe_change_set = cfn.make_describe_change_set(client, n_calls, 'FAILED')
+
+        client.mock('describe_change_set', describe_change_set)
+        finished = _wait_for_changeset(client, 'foo', 'bar')
+        self.assertEqual(client.called['describe_change_set'], n_calls)
+        # we're only testing that this runs to completion
+        self.assertEqual(finished, False)
+
     def test_stack_complete(self):
         '''Check if the stack status is in a complete state
         '''
@@ -128,11 +142,11 @@ class TestCommandDeploy(unittest.TestCase):
         _execute_changeset(client, 'foo', 'bar')
         self.assertEqual(client.called['execute_change_set'], 1)
 
-    def test_get_parameters(self):
+    def test_get_parameters_empty(self):
         # Need to check rendering a template. Loading a template from disk 
         # and rendering should be separated. This is a placeholder
-        # _get_parameters(parameter_file)
-        self.assertEqual(True, True)
+        parameters = _get_parameters(None)
+        self.assertEqual(parameters, [])
 
 if __name__ == '__main__':
     unittest.main()
