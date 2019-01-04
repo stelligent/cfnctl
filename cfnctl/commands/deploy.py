@@ -178,6 +178,8 @@ def _get_parameters(parameter_file):
 
     return object
     '''
+    if parameter_file is None:
+        return []
     logging.info('Getting template parameters')
     logging.info(os.getcwd())
     template_env = Environment(

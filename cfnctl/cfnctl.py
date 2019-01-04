@@ -51,7 +51,7 @@ def arg_deploy(parser, action):
     optional_group.add_argument(
         '-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
     optional_group.add_argument('-p', dest='parameters', required=False,
-                                help='Local parameters JSON file', default='parameters.json')
+                                help='Local parameters JSON file')
     command_deploy.set_defaults(func=action)
     return parser
 
