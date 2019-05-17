@@ -21,16 +21,17 @@ def s3_path(stack, template):
     '''
     return '{}/{}'.format(stack, os.path.basename(template))
 
-def upload_file(simple_storage_service, stack, bucket, template_name):
-    '''Upload the cfn template
-    to S3
+def upload_file(stack, bucket, template_name):
+    '''
+    Upload the cfn template to S3
     '''
     logging.info('Uploading file %s', template_name)
+    client = boto3.client('s3')
     if is_url(template_name):
         return None, template_name
     file_path = os.path.abspath(template_name)
     path = s3_path(stack, template_name)
-    return simple_storage_service.upload_file(file_path, bucket, path), path
+    return client.upload_file(file_path, bucket, path), path
 
 def get_file_url(bucket, stack, template_name):
     '''Get the cfn template url

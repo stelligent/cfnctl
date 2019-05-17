@@ -36,8 +36,9 @@ def zip_dir(path, name):
     write_zip(path, zipf)
     zipf.close()
 
-def lambda_command(args):
-    '''Deploy a lambda function
+def lambda_deploy(args):
+    '''
+    Deploy a lambda function
     '''
     logging.info('Calling lambda_command')
     simple_storage_service = boto3.client('s3')

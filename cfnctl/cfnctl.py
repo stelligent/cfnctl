@@ -20,7 +20,8 @@ Control Cloudformation stack lifecycle
 import sys
 import argparse
 import logging
-from . import commands
+from cfnctl.commands.deploy import deploy
+from cfnctl.commands.lambda_command import lambda_deploy
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,14 +31,10 @@ logging.basicConfig(
     ]
 )
 
-
 def arg_deploy(parser, action):
     '''
     Deploy subcommand and arguments
     '''
-    # command = parser.add_subparsers(description='command to run',
-    #                                 dest='deploy')
-
     command_deploy = parser.add_parser(
         'deploy', help='creates a changeset and executes to create or update stack')
     required_group = command_deploy.add_argument_group('required arguments')
@@ -50,6 +47,8 @@ def arg_deploy(parser, action):
         '-b', dest='bucket', required=False, help='Bucket to upload template to')
     optional_group.add_argument(
         '-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
+    optional_group.add_argument(
+        '--set', dest='stack_set', required=False, help='Deploy as stack set', action='store_true')
     optional_group.add_argument('-p', dest='parameters', required=False,
                                 help='Local parameters JSON file')
     command_deploy.set_defaults(func=action)
@@ -59,9 +58,6 @@ def arg_lambda(parser, action):
     '''
     Lambda subcommand and arguments
     '''
-    # command = parser.add_subparsers(description='command to run',
-    #                                 dest='lambda')
-
     command_lambda = parser.add_parser(
         'lambda', help='creates an archive and loads it to S3 to create a lambda from')
     required_group = command_lambda.add_argument_group('required arguments')
@@ -92,18 +88,16 @@ def arg_parser():
 
     return parser
 
-
 def main():
     '''
     CFNCTL entrypoint
     '''
     parser = arg_parser()
     subparsers = parser.add_subparsers()
-    arg_deploy(subparsers, commands.deploy)
-    arg_lambda(subparsers, commands.lambda_command)
+    arg_deploy(subparsers, deploy)
+    arg_lambda(subparsers, lambda_deploy)
     args = parser.parse_args()
     args.func(args)
-
 
 if __name__ == "__main__":
     try:

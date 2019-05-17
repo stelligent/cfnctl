@@ -23,7 +23,7 @@ install: build
 
 test:
 	@echo "=== Testing ==="
-	pipenv run python -m unittest discover -v test "*.py"
+	pipenv run python -m pytest test/unit --cov=cfnctl -W ignore::DeprecationWarning
 
 coverage:
 	@echo "=== Coverage ==="
