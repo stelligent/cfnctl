@@ -30,7 +30,7 @@ def _stack_exists(client, name):
         message = error.response.get('Error', {}).get('Message', 'Unknown')
         if 'not exist' in message:
             return False
-        print error
+        print(error)
 
     if not stacks:
         sys.exit()
