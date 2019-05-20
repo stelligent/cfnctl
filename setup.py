@@ -61,12 +61,12 @@ setup(
     classifiers=[
         'Intended Audience :: Developers',
         'Natural Language :: English',
-        'Environment :: Web Environment',
+        'Environment :: Amazon Web Services',
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
-        'Development Status :: 1 - Planning',
+        'Development Status :: 4 - Beta',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Utilities'
     ]

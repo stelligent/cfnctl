@@ -8,6 +8,7 @@ around operating S3 belongs here.
 import os
 import re
 import logging
+import boto3
 
 def is_url(search):
     '''
@@ -19,7 +20,8 @@ def s3_path(stack, template):
     '''
     Turn a stack name and template file into an S3 path
     '''
-    return '{}/{}'.format(stack, os.path.basename(template))
+    base = os.path.basename(template)
+    return f'{stack}/{base}'
 
 def upload_file(stack, bucket, template_name):
     '''
@@ -28,7 +30,7 @@ def upload_file(stack, bucket, template_name):
     logging.info('Uploading file %s', template_name)
     client = boto3.client('s3')
     if is_url(template_name):
-        return None, template_name
+        return None, s3_path(stack, template_name)
     file_path = os.path.abspath(template_name)
     path = s3_path(stack, template_name)
     return client.upload_file(file_path, bucket, path), path
@@ -44,14 +46,15 @@ def get_file_url(bucket, stack, template_name):
     return 'https://s3.amazonaws.com/{}/{}'.format(bucket, s3_path(stack, template_name))
 
 
-def _bucket_exists(simple_storage_service, name):
+def bucket_exists(name):
     '''Check if a bucket exists
     by name
 
     return bool
     '''
     logging.info('Verifying S3 bucket exists')
-    buckets = simple_storage_service.list_buckets()
+    client = boto3.client('s3')
+    buckets = client.list_buckets()
     exists = False
     for bucket in buckets['Buckets']:
         if bucket['Name'] == name:
@@ -59,7 +62,7 @@ def _bucket_exists(simple_storage_service, name):
             break
     return exists
 
-def maybe_make_bucket(simple_storage_service, region, account_id):
+def maybe_make_bucket(region, account_id):
     '''Make a bucket to upload
     the cfn template to if
     it does not exist
@@ -67,17 +70,18 @@ def maybe_make_bucket(simple_storage_service, region, account_id):
     return string - bucket name
     '''
     logging.info('Maybe make S3 bucket')
+    client = boto3.client('s3')
     stack_bucket = 'cfnctl-staging-bucket-{}-{}'.format(
         region, account_id)
-    if _bucket_exists(simple_storage_service, stack_bucket):
+    if bucket_exists(stack_bucket):
         logging.info('Bucket exists')
         return stack_bucket
 
     logging.info('No S3 bucket found, creating %s', stack_bucket)
-    simple_storage_service.create_bucket(
+    client.create_bucket(
         Bucket=stack_bucket
     )
-    simple_storage_service.put_bucket_versioning(
+    client.put_bucket_versioning(
         Bucket=stack_bucket,
         VersioningConfiguration={
             # 'MFADelete': 'Enabled', # requires MFA device added

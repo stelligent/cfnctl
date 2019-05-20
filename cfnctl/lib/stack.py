@@ -9,8 +9,9 @@ import botocore.exceptions
 from jinja2 import Environment, FileSystemLoader
 import cfnctl.lib as lib
 
-def _stack_exists(name):
-    '''Check if a cfn stack exists
+def stack_exists(name):
+    '''
+    Check if a cfn stack exists
     by name
 
     return bool
@@ -24,9 +25,10 @@ def _stack_exists(name):
         message = error.response.get('Error', {}).get('Message', 'Unknown')
         if 'not exist' in message:
             return False
-        print(error)
+        logging.error(error)
 
     if not stacks:
+        logging.error('Unable to successfully describe_stacks')
         sys.exit()
 
     exists = False
@@ -37,15 +39,16 @@ def _stack_exists(name):
     return exists
 
 
-def _make_change_set(stack, template, parameters):
-    '''Create a change set for
+def make_change_set(stack, template, parameters):
+    '''
+    Create a change set for
     a cfn stack
 
     return client.create_change_set
     '''
     logging.info('Creating change set')
     client = boto3.client('cloudformation')
-    exists = _stack_exists(stack)
+    exists = stack_exists(stack)
     set_name = stack + datetime.datetime.now().strftime('%y-%m-%d-%H%M%S')
     logging.info('Stack exists: %s', exists)
     logging.info('template url: %s', template)
@@ -63,8 +66,9 @@ def _make_change_set(stack, template, parameters):
     return set_name
 
 
-def _wait_for_changeset(changeset, stack):
-    '''Block script execution until a change
+def wait_for_changeset(changeset, stack):
+    '''
+    Block script execution until a change
     set creates or fails
 
     return bool
@@ -86,10 +90,11 @@ def _wait_for_changeset(changeset, stack):
 
     logging.info('Waiting for change set creation. Status: %s', description['Status'])
     time.sleep(3)
-    return _wait_for_changeset(changeset, stack)
+    return wait_for_changeset(changeset, stack)
 
-def _stack_complete(name):
-    '''Check if a stack is in a complete (finished, failure)
+def stack_complete(name):
+    '''
+    Check if a stack is in a complete (finished, failure)
     state
     '''
     client = boto3.client('cloudformation')
@@ -111,8 +116,9 @@ def _stack_complete(name):
     }
 
 
-def _wait_for_stack(stack, token=None, old_events=None):
-    '''Block script execution until the stack status
+def wait_for_stack(stack, token=None, old_events=None):
+    '''
+    Block script execution until the stack status
     is in a finished state
 
     return bool
@@ -145,21 +151,22 @@ def _wait_for_stack(stack, token=None, old_events=None):
     # wait a bit before doing this again
     time.sleep(3)
     # if the stack is complete we'll stop (we should query one more time for events probably)
-    stack_status = _stack_complete(stack)
+    stack_status = stack_complete(stack)
     if stack_status['complete']:
         logging.info('Stack finished in %s state', stack_status['status'])
         return None
     # make a list of previous stack events
     last_events = list([event['EventId'] for event in events['StackEvents']])
-    return _wait_for_stack(
+    return wait_for_stack(
         stack,
         'NextToken' in events and events['NextToken'],
         last_events
     )
 
 
-def _execute_changeset(changeset, stack):
-    '''Execute a created changeset
+def execute_changeset(changeset, stack):
+    '''
+    Execute a created changeset
 
     return client.execute_change_set
     '''
@@ -171,8 +178,9 @@ def _execute_changeset(changeset, stack):
     )
 
 
-def _get_parameters(parameter_file):
-    '''Get parameters for a cfn template
+def get_parameters(parameter_file):
+    '''
+    Get parameters for a cfn template
 
     return object
     '''

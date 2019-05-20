@@ -1,7 +1,7 @@
 import sys
 import time
 from typing import List
-from cfnctl.lib.stack import _get_parameters
+import cfnctl.lib.stack as stack
 import cfnctl
 import boto3
 
@@ -29,7 +29,7 @@ def create_stack_set(stack: str, template: str, parameters: List[dict]) -> dict:
         StackSetName=stack,
         Description='Codepipeline cross account roles',
         TemplateURL=template,
-        Parameters=_get_parameters(parameters),
+        Parameters=stack.get_parameters(parameters),
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
@@ -57,7 +57,7 @@ def update_stack_set(stack, template, parameters):
     return client.update_stack_set(
         StackSetName=stack,
         TemplateURL=template,
-        Parameters=_get_parameters(parameters),
+        Parameters=stack.get_parameters(parameters),
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],

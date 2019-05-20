@@ -1,4 +1,5 @@
 export PIPENV_VENV_IN_PROJECT=1
+export AWS_DEFAULT_REGION=us-east-1
 
 default: all
 
@@ -19,16 +20,11 @@ build:
 
 install: build
 	@echo "=== Installing ==="
-	pip3 install --user ./
+	pipenv run pip install ./
 
 test:
 	@echo "=== Testing ==="
 	pipenv run python -m pytest test/unit --cov=cfnctl -W ignore::DeprecationWarning
-
-coverage:
-	@echo "=== Coverage ==="
-	coverage run --source cfnctl -m unittest discover -v test "*.py"
-	coverage report -m
 
 deploy_test: lint test build
 	@echo "=== Deploy test.pypi ==="
@@ -40,8 +36,8 @@ deploy: lint test build
 	@pipenv run twine upload dist/*
 
 usage: install
-	cfnctl --help
+	pipenv run cfnctl --help
 
-all: deps test build
+all: deps lint test build
 
-.PHONY: default all lint build test coverage deploy_test usage
+.PHONY: default all lint build test deploy_test usage
