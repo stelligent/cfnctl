@@ -1,17 +1,15 @@
 import sys
 import time
 from typing import List
-import cfnctl.lib.stack as stack
 import cfnctl
 import boto3
 
-def create_stack_set(stack: str, template: str, parameters: List[dict]) -> dict:
+def create_stack_set(stack_name: str, template: str, parameters: List[dict]) -> dict:
     '''
     Create a new stack set
 
     Args:
-        client (object): Boto3 cloudformation client
-        stack (str): AWS Stack name
+        stack_name (str): AWS Stack name
         template (str): S3 url for the template
         parameters list: [
             {
@@ -26,21 +24,21 @@ def create_stack_set(stack: str, template: str, parameters: List[dict]) -> dict:
     '''
     client = boto3.client('cloudformation')
     return client.create_stack_set(
-        StackSetName=stack,
+        StackSetName=stack_name,
         Description='Codepipeline cross account roles',
         TemplateURL=template,
-        Parameters=stack.get_parameters(parameters),
+        Parameters=parameters,
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
     )
 
-def update_stack_set(stack, template, parameters):
+def update_stack_set(stack_name, template, parameters):
     '''
     Update an existing stack set
 
     Args:
-        stack (str): AWS Stack name
+        stack_name (str): AWS Stack name
         template (str): S3 url for the template
         parameters list: [
             {
@@ -55,9 +53,9 @@ def update_stack_set(stack, template, parameters):
     '''
     client = boto3.client('cloudformation')
     return client.update_stack_set(
-        StackSetName=stack,
+        StackSetName=stack_name,
         TemplateURL=template,
-        Parameters=stack.get_parameters(parameters),
+        Parameters=parameters,
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
@@ -124,7 +122,7 @@ def stack_set_exists(stack, token=None):
     return False
 
 
-def deploy_stack_set(stack, template, parameters):
+def deploy_stack_set(stack_name, template, parameters):
     '''
     Create or Update a stack set and return when it's complete
 
@@ -141,15 +139,15 @@ def deploy_stack_set(stack, template, parameters):
     Returns:
         None
     '''
-    if stack_set_exists(stack):
+    if stack_set_exists(stack_name):
         update_stack_set(
-            stack=stack,
+            stack_name=stack_name,
             template=template,
             parameters=parameters,
         )
     else:
         create_stack_set(
-            stack=stack,
+            stack_name=stack_name,
             template=template,
             parameters=parameters,
         )
@@ -192,12 +190,11 @@ def update_instances(stack, accounts):
         ],
     )
 
-def need_create_stack_instances(client, stack, accounts):
+def need_create_stack_instances(stack, accounts):
     '''
     Checks if stack instances should be created
 
     Args:
-        client (object): Boto3 cloudformation client
         stack (str): AWS Stack name
         accounts (list[str]): List of account ids
     Returns:
@@ -205,6 +202,7 @@ def need_create_stack_instances(client, stack, accounts):
             string,
         ]
     '''
+    client = boto3.client('cloudformation')
     launched = accounts[:]
     response = client.list_stack_instances(
         StackSetName=stack
@@ -215,7 +213,7 @@ def need_create_stack_instances(client, stack, accounts):
 
     return launched
 
-def deploy_stacks(client, stack, accounts):
+def deploy_stacks(stack, accounts):
     '''
     Create or update stacks in a stack set
 
@@ -225,6 +223,6 @@ def deploy_stacks(client, stack, accounts):
     Returns:
         None
     '''
-    if need_create_stack_instances(client, stack, accounts):
+    if need_create_stack_instances(stack, accounts):
         return create_instances(stack=stack, accounts=accounts)
     return update_instances(stack=stack, accounts=accounts)

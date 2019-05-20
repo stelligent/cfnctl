@@ -20,7 +20,9 @@ build:
 
 install: build
 	@echo "=== Installing ==="
-	pipenv run pip install ./
+	pipenv run python setup.py install
+	# python3 setup.py install
+	# cfnctl deploy --set -s qa-sarahconner-baseline-stackset -t test.yaml -p parameters.json
 
 test:
 	@echo "=== Testing ==="

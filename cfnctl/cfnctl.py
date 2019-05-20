@@ -25,11 +25,24 @@ from cfnctl.commands.lambda_command import lambda_deploy
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    format="%(asctime)s %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout)
     ]
 )
+class CondAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        x = kwargs.pop('to_be_required', [])
+        super(CondAction, self).__init__(option_strings, dest, **kwargs)
+        self.make_required = x
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for x in self.make_required:
+            x.required = True
+        try:
+            return super(CondAction, self).__call__(parser, namespace, values, option_string)
+        except NotImplementedError:
+            pass
 
 def arg_deploy(parser, action):
     '''
@@ -41,16 +54,45 @@ def arg_deploy(parser, action):
     required_group.add_argument(
         '-s', dest='stack_name', required=True, help="Stack name")
     required_group.add_argument(
-        '-t', dest='template', required=True, help='CFN Template from local file or URL')
+        '-t',
+        dest='template',
+        required=True,
+        help='CFN Template from local file or URL'
+    )
+
     optional_group = command_deploy.add_argument_group('optional arguments')
     optional_group.add_argument(
-        '-b', dest='bucket', required=False, help='Bucket to upload template to')
+        '-b',
+        dest='bucket',
+        required=False,
+        help='Bucket to upload template to'
+    )
     optional_group.add_argument(
-        '-nr', dest='no_rollback', required=False, help='Do not rollback', action='store_true')
+        '-nr',
+        dest='no_rollback',
+        required=False,
+        help='Do not rollback',
+        action='store_true'
+    )
     optional_group.add_argument(
-        '--set', dest='stack_set', required=False, help='Deploy as stack set', action='store_true')
-    optional_group.add_argument('-p', dest='parameters', required=False,
-                                help='Local parameters JSON file')
+        '-p',
+        dest='parameters',
+        required=False,
+        help='Local parameters JSON file'
+    )
+    optional_group.add_argument(
+        '--set',
+        dest='stack_set',
+        required=False,
+        help='Deploy as stack set',
+        action='store_true'
+    )
+    optional_group.add_argument(
+        '-a',
+        dest='accounts',
+        required='--set' in sys.argv,
+        help='comma delimited list of accounts to deploy a stack set into'
+    )
     command_deploy.set_defaults(func=action)
     return parser
 

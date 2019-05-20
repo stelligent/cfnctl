@@ -198,4 +198,3 @@ def get_parameters(parameter_file):
         # github_token=os.environ.get('GITHUB_TOKEN')
     )
     return json.loads(rendered)
-
