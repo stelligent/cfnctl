@@ -12,7 +12,8 @@ import cfnctl.lib.stack as stack
 import cfnctl.lib.stack_set as stack_set
 import cfnctl.lib.bucket
 
-def deploy_stack_set(stack_name: str, template: str, parameters: List[dict], accounts = List[str]) -> None:
+def deploy_stack_set(stack_name: str, template: str,
+    parameters: List[dict], accounts: List[str], role: str) -> None:
 
     account_id = boto3.client('sts').get_caller_identity().get('Account')
     region = boto3.session.Session().region_name
@@ -23,7 +24,8 @@ def deploy_stack_set(stack_name: str, template: str, parameters: List[dict], acc
     stack_set.deploy_stack_set(
         stack_name=stack_name,
         template=cfnctl.lib.bucket.get_file_url(bucket, stack_name, template),
-        parameters=parameters
+        parameters=parameters,
+        role=role,
     )
     stack_set.wait_for_stack_set(stack=stack_name)
 
@@ -57,7 +59,7 @@ def deploy(args: object):
     accounts = args.accounts or ''
     template = cfnctl.lib.bucket.get_file_url(bucket, stack, args.template)
     parameters = stack.get_parameters(args.parameters)
-
+    role = args.role or None
     # Upload the template file to our bucket
     cfnctl.lib.bucket.upload_file(stack, bucket, args.template)
 
@@ -67,9 +69,10 @@ def deploy(args: object):
             template=template,
             parameters=parameters,
             accounts=str(accounts).split(','),
+            role=role,
         )
 
-    deploy_stack(
+    return deploy_stack(
         stack_name=stack_name,
         template=template,
         parameters=parameters,

@@ -91,7 +91,13 @@ def arg_deploy(parser, action):
         '-a',
         dest='accounts',
         required='--set' in sys.argv,
-        help='comma delimited list of accounts to deploy a stack set into'
+        help='Comma delimited list of accounts to deploy a stack set into'
+    )
+    optional_group.add_argument(
+        '--role',
+        dest='role',
+        required=False,
+        help='Stack set execution role'
     )
     command_deploy.set_defaults(func=action)
     return parser

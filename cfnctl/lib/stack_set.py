@@ -4,7 +4,7 @@ from typing import List
 import cfnctl
 import boto3
 
-def create_stack_set(stack_name: str, template: str, parameters: List[dict]) -> dict:
+def create_stack_set(stack_name: str, template: str, parameters: List[dict], role: str = None) -> dict:
     '''
     Create a new stack set
 
@@ -22,6 +22,7 @@ def create_stack_set(stack_name: str, template: str, parameters: List[dict]) -> 
             'StackSetId': 'string'
         }
     '''
+    role = role or 'AWSCloudFormationStackSetAdministrationRole'
     client = boto3.client('cloudformation')
     return client.create_stack_set(
         StackSetName=stack_name,
@@ -31,9 +32,10 @@ def create_stack_set(stack_name: str, template: str, parameters: List[dict]) -> 
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
+        ExecutionRoleName=role,
     )
 
-def update_stack_set(stack_name, template, parameters):
+def update_stack_set(stack_name: str, template: str, parameters: List[dict], role: str = None):
     '''
     Update an existing stack set
 
@@ -51,6 +53,7 @@ def update_stack_set(stack_name, template, parameters):
             'OperationId': 'string'
         }
     '''
+    role = role or 'AWSCloudFormationStackSetAdministrationRole'
     client = boto3.client('cloudformation')
     return client.update_stack_set(
         StackSetName=stack_name,
@@ -59,6 +62,7 @@ def update_stack_set(stack_name, template, parameters):
         Capabilities=[
             'CAPABILITY_NAMED_IAM',
         ],
+        ExecutionRoleName=role,
     )
 
 def wait_for_stack_set(stack, token=None):
@@ -122,7 +126,7 @@ def stack_set_exists(stack, token=None):
     return False
 
 
-def deploy_stack_set(stack_name, template, parameters):
+def deploy_stack_set(stack_name: str, template: str, parameters: List[dict], role: str = None):
     '''
     Create or Update a stack set and return when it's complete
 
@@ -144,12 +148,14 @@ def deploy_stack_set(stack_name, template, parameters):
             stack_name=stack_name,
             template=template,
             parameters=parameters,
+            role=role,
         )
     else:
         create_stack_set(
             stack_name=stack_name,
             template=template,
             parameters=parameters,
+            role=role,
         )
 
 def create_instances(stack, accounts):
